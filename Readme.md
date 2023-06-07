@@ -1,7 +1,7 @@
 # Проект «Большое путешествие (простой)»
 
-* Студент: [Дмитрий Садовников](https://up.htmlacademy.ru/univer-js2/3/user/2345911).
-* Наставник: `Неизвестно`.
+* Студент: [Садовников Дмитрий](https://htmlacademy.ru/profile/id2345911).
+* Наставник: `Дмитрий Рябинин`.
 
 ---
 
@@ -48,5 +48,5 @@ git clone SSH-адрес_вашего_форка
 
 Репозиторий создан для обучения на профессиональном курсе «[JavaScript. Архитектура клиентских приложений](https://htmlacademy.ru/intensive/ecmascript)» от [HTML Academy](https://htmlacademy.ru).
 
-[check-image]: https://github.com/htmlacademy-ecmascript/2345911-big-trip-simple-3/workflows/Project%20check/badge.svg?branch=master
-[check-url]: https://github.com/htmlacademy-ecmascript/2345911-big-trip-simple-3/actions
+[check-image]: https://github.com/htmlacademy-ecmascript/1339445-big-trip-simple-3/workflows/Project%20check/badge.svg?branch=master
+[check-url]: https://github.com/htmlacademy-ecmascript/1339445-big-trip-simple-3/actions
