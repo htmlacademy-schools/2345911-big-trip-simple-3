@@ -41,6 +41,7 @@ export default class TripEventsModel extends Observable {
     return -1;
   }
 
+  
   async removeTripById(id) {
     const i = this.#getIndexOfTripById(id);
     if (i !== -1) {
