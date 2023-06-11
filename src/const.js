@@ -1,15 +1,3 @@
-export const TRIP_EVENT_TYPES = [
-  'taxi',
-  'bus',
-  'train',
-  'ship',
-  'drive',
-  'flight',
-  'check-in',
-  'sightseeing',
-  'restaurant',
-];
-
 export const LIST_MODE = {
   DEFAULT: 'DEFAULT',
   EMPTY: 'EMPTY',
@@ -33,3 +21,9 @@ export const FILTER_MODE = {
   FUTURE: 'future',
   PAST: 'past',
 };
+
+export const FORM_STATUS = {
+  READY: 'READY',
+  SAVING: 'SAVING',
+  DELETING: 'DELETING',
+}
