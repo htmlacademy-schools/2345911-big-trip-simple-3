@@ -8,3 +8,5 @@ const presenter = new MainPresenter();
 const tripModel = new TripModel();
 
 presenter.init(tripEventsSection, tripFiltersBlock, tripModel);
+         
+
