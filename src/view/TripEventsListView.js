@@ -1,4 +1,4 @@
-import { LIST_MODE } from '../const';
+import { FILTER_MODE, LIST_MODE } from '../const';
 import { createElement, render } from '../framework/render';
 import AbstractView from '../framework/view/abstract-view';
 
@@ -10,41 +10,29 @@ const createElementWrapperTemplate = () => `
   <li class="trip-events__item"></li>
 `;
 
-const createMessageTemplate = () => `
-  <p class="trip-events__msg">Click New Event to create your first point</p>
-`;
+const createMessageTemplate = (listMode) => {
+  let message = 'Click New Event to create your first point';
+  if (listMode === LIST_MODE.LOADING) {
+    message = 'Loading...';
+  }
+  return `
+    <p class="trip-events__msg">${message}</p>
+  `;
+};
 
 export default class TripEventsListView extends AbstractView {
   #listMode = null;
-  #filterView = null;
+  #filterModel = null;
 
-  #filterValue = null;
-
-  constructor(listMode, filterView) {
+  constructor(listMode, filterModel) {
     super();
     this.#listMode = listMode;
-    this.#filterView = filterView;
-
-    this.#filterValue = this.#filterView.element.querySelector('input[name="trip-filter"]:checked').value;
-  }
-
-  #filtersFormHandler = (evt) => {
-    evt.preventDefault();
-    this._callback.filtersFormChange(evt);
-  };
-
-  setFiltersFormChangeHandler = (callback) => {
-    this._callback.filtersFormChange = callback;
-    this.#filterView.element.addEventListener('change', this.#filtersFormHandler);
-  };
-
-  setFilterValue(filterValue) {
-    this.#filterValue = filterValue;
+    this.#filterModel = filterModel;
   }
 
   get template() {
-    if (this.#listMode === LIST_MODE.EMPTY) {
-      return createMessageTemplate();
+    if (this.#listMode === LIST_MODE.EMPTY || this.#listMode === LIST_MODE.LOADING) {
+      return createMessageTemplate(this.#listMode);
     } else {
       return createTripEventsListTemplate();
     }
@@ -53,10 +41,11 @@ export default class TripEventsListView extends AbstractView {
   updateMessage() {
     // set message text if tripList is empty
     if (this.#listMode === LIST_MODE.EMPTY) {
+      const filterValue = this.#filterModel.getFilter();
       let newText = 'Click New Event to create your first point'; // default value
-      if (this.#filterValue === 'future') {
+      if (filterValue === FILTER_MODE.FUTURE) {
         newText = 'There are no future events now';
-      } else if (this.#filterValue === 'past') {
+      } else if (filterValue === FILTER_MODE.PAST) {
         newText = 'There are no past events now';
       }
 

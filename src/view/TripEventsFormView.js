@@ -1,31 +1,32 @@
 import dayjs from 'dayjs';
-import { destinations, offers } from '../mock/trip-event';
-import { FORM_MODE, TRIP_EVENT_TYPES } from '../const';
+import { FORM_MODE, FORM_STATUS } from '../const';
 import { capitalize } from '../utils';
 import AbstractStatefulView from '../framework/view/abstract-stateful-view';
 import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 
 const BLANK_TASK = {
-  id: 0,
-  base_price: null,
-  date_from: '2023-06-01T00:00:00.000Z',
-  date_to: '2023-06-01T00:00:00.000Z',
-  destination: Object.keys(destinations)[0],
-  type: TRIP_EVENT_TYPES.includes('flight') ? 'flight' : TRIP_EVENT_TYPES[0],
+  id: '-1',
+  'base_price': 100,
+  'date_from': null,
+  'date_to': null,
+  destination: null,
+  type: null,
   offers: [],
+  'is_favourite': false,
 };
 
-const createTripEventsFormTemplate = (tripEventData, mode) => {
-  const dateFrom = dayjs(tripEventData.date_from);
-  const dateTo = dayjs(tripEventData.date_to);
-  const destination = destinations[tripEventData.destination];
+const createTripEventsFormTemplate = (tripEventData, mode, offerModel, destinationModel) => {
+  const dateFrom = dayjs(tripEventData['date_from']);
+  const dateTo = dayjs(tripEventData['date_to']);
+  const destination = destinationModel.getDestinationById(tripEventData.destination);
+  const offersByType = offerModel.getOffersByType(tripEventData.type);
 
   const getTripTypeIconSrc = () => `img/icons/${tripEventData.type}.png`;
   const getDateTimeString = (date) => date.format('DD/MM/YY HH:mm');
-  const getPrice = () => (tripEventData.base_price === null) ? '' : tripEventData.base_price;
+  const getPrice = () => tripEventData['base_price'];
 
-  const listTripEventTypes = () => TRIP_EVENT_TYPES.map((tripEventType) => `
+  const listTripEventTypes = () => offerModel.getTypes().map((tripEventType) => `
         <div class="event__type-item">
           <input id="event-type-${tripEventType}-1" class="event__type-input
             visually-hidden" type="radio" name="event-type" value="${tripEventType}"
@@ -37,15 +38,23 @@ const createTripEventsFormTemplate = (tripEventData, mode) => {
       `)
     .join('');
 
-  const listDestinations = () => Object.values(destinations).map((d) => `
+  const listDestinations = () => destinationModel.destinations.map((d) => `
         <option value="${d.name}"></option>
       `)
     .join('');
 
   const listOffers = () => {
+    if (offersByType.length === 0) {
+      return `
+        <div class="event__offer-selector">
+          No offers available
+        </div>
+      `;
+    }
     const resultList = [];
-    for (const [offerId, isActive] of Object.entries(tripEventData.offers)) {
-      const offer = offers[offerId];
+    for (const offer of offersByType) {
+
+      const isActive = tripEventData.offers.includes(offer.id);
       resultList.push(`
         <div class="event__offer-selector">
           <input class="event__offer-checkbox  visually-hidden" id="event-offer-${offer.id}-1"
@@ -62,10 +71,43 @@ const createTripEventsFormTemplate = (tripEventData, mode) => {
     return resultList.join('');
   };
 
+  const offersSection = () => {
+    if (offersByType.length === 0) {
+      return '';
+    }
+    return `
+      <section class="event__section  event__section--offers">
+        <h3 class="event__section-title  event__section-title--offers">Offers</h3>
+
+        <div class="event__available-offers">
+          ${listOffers()}
+        </div>
+      </section>
+    `;
+  };
+
   const listDestinationPictures = () => destination.pictures.map((picture) => `
         <img class="event__photo" src="${picture.src}" alt="${picture.description}">
       `)
     .join('');
+
+  const destinationSection = () => {
+    if (destination.description && destination.pictures.length === 0) {
+      return '';
+    }
+    return `
+      <section class="event__section  event__section--destination">
+        <h3 class="event__section-title  event__section-title--destination">Destination</h3>
+        <p class="event__destination-description">${destination.description}</p>
+
+        <div class="event__photos-container">
+          <div class="event__photos-tape">
+            ${listDestinationPictures()}
+          </div>
+        </div>
+      </section>
+    `;
+  };
 
   const listControls = () => {
     if (mode === FORM_MODE.NEW) {
@@ -136,23 +178,8 @@ const createTripEventsFormTemplate = (tripEventData, mode) => {
 
       </header>
       <section class="event__details">
-        <section class="event__section  event__section--offers">
-          <h3 class="event__section-title  event__section-title--offers">Offers</h3>
-
-          <div class="event__available-offers">
-            ${listOffers()}
-        </section>
-
-        <section class="event__section  event__section--destination">
-          <h3 class="event__section-title  event__section-title--destination">Destination</h3>
-          <p class="event__destination-description">${destination.description}</p>
-
-          <div class="event__photos-container">
-            <div class="event__photos-tape">
-              ${listDestinationPictures()}
-            </div>
-          </div>
-        </section>
+        ${offersSection()}
+        ${destinationSection()}
       </section>
     </form>
   `;
@@ -161,12 +188,24 @@ const createTripEventsFormTemplate = (tripEventData, mode) => {
 export default class TripEventsFormView extends AbstractStatefulView {
   _state = BLANK_TASK;
   mode = FORM_MODE.NEW;
+  status = FORM_STATUS.READY;
+
+  #offerModel = null;
+  #destinationModel = null;
 
   #datepickerFrom = null;
   #datepickerTo = null;
 
+  #lastDestinationName = 'Chamonix';
+
+  constructor(offerModel, destinationModel) {
+    super();
+    this.#offerModel = offerModel;
+    this.#destinationModel = destinationModel;
+  }
+
   get template() {
-    return createTripEventsFormTemplate(this._state, this.mode);
+    return createTripEventsFormTemplate(this._state, this.mode, this.#offerModel, this.#destinationModel);
   }
 
   setMode(mode) {
@@ -175,7 +214,9 @@ export default class TripEventsFormView extends AbstractStatefulView {
 
   #formSubmitHandler = (evt) => {
     evt.preventDefault();
-    this._callback.formSubmit();
+    if (this.status === FORM_STATUS.READY) {
+      this._callback.formSubmit();
+    }
   };
 
   setFormSubmitHandler = (callback) => {
@@ -185,7 +226,9 @@ export default class TripEventsFormView extends AbstractStatefulView {
 
   #cancelButtonHandler = (evt) => {
     evt.preventDefault();
-    this._callback.cancelButtonClick();
+    if (this.status === FORM_STATUS.READY) {
+      this._callback.cancelButtonClick();
+    }
   };
 
   setCancelButtonClickHandler = (callback) => {
@@ -195,7 +238,9 @@ export default class TripEventsFormView extends AbstractStatefulView {
 
   #arrowClickHandler = (evt) => {
     evt.preventDefault();
-    this._callback.arrowClick();
+    if (this.status === FORM_STATUS.READY) {
+      this._callback.arrowClick();
+    }
   };
 
   setArrowClickHandler = (callback) => {
@@ -211,36 +256,38 @@ export default class TripEventsFormView extends AbstractStatefulView {
           dateFormat: 'd/m/y H:i',
           defaultDate: this._state.date_from,
           enableTime: true,
-          time_24hr: true,
-          onClose: ([dateFrom]) => {
+          'time_24hr': true,
+          onClose: ([dateFrom], _, instance) => {
             let newDate = dateFrom.toISOString();
-            if (newDate > this._state.date_to) {
+            if (newDate > this._state['date_to']) {
               alert('Дата начала не может быть позже даты окончания');
               newDate = this._state.date_from;
+              instance.open();
             }
             this.updateElement({
-              date_from: newDate,
+              'date_from': newDate,
             });
           },
         },
       );
     }
-    if (this._state.date_to) {
+    if (this._state['date_to']) {
       this.#datepickerTo = flatpickr(
         this.element.querySelector('#event-end-time-1'),
         {
           dateFormat: 'd/m/y H:i',
           defaultDate: this._state.date_to,
           enableTime: true,
-          time_24hr: true,
-          onClose: ([dateTo]) => {
+          'time_24hr': true,
+          onClose: ([dateTo], _, instance) => {
             let newDate = dateTo.toISOString();
-            if (this._state.date_from > dateTo) {
+            if (this._state['date_from'] > newDate) {
               alert('Дата окончания не может быть раньше даты начала');
-              newDate = this._state.date_to;
+              newDate = this._state['date_to'];
+              instance.open();
             }
             this.updateElement({
-              date_to: newDate,
+              'date_to': newDate,
             });
           },
         },
@@ -261,19 +308,53 @@ export default class TripEventsFormView extends AbstractStatefulView {
     if (this._callback.cancelButtonClick) {
       this.setCancelButtonClickHandler(this._callback.cancelButtonClick);
     }
-    if (this._callback.arrowClick) {
+    if (this._callback.arrowClick && this.mode === FORM_MODE.EDIT) {
       this.setArrowClickHandler(this._callback.arrowClick);
     }
+  }
+
+  createBlankForm(tripModel) {
+    const _currentDate = dayjs().startOf('minute');
+    const newState = {
+      ...BLANK_TASK,
+      id: tripModel.getNextId(),
+      destination: this.#destinationModel.destinations[0].id,
+      type: this.#offerModel.offers[0].type,
+      'date_from': _currentDate.toISOString(),
+      'date_to': _currentDate.add(1, 'days').toISOString(),
+    };
+
+    this.status = FORM_STATUS.READY;
+    this._setState(newState);
+    this.element;
+    this._restoreHandlers();
+
+  }
+
+  updateElement(update) {
+    super.updateElement(update);
+
+    const destination = this.#destinationModel.getDestinationById(this._state.destination);
+    this.#lastDestinationName = destination.name;
   }
 
   #setOffersUpdateHandler() {
     const checkboxes = this.element.querySelectorAll('.event__offer-checkbox');
     for (const checkbox of checkboxes) {
       checkbox.addEventListener('change', (evt) => {
-        const checkboxId = evt.target.id; // looks like 'event-offer-${offer.id}-1'
+        if (this.status !== FORM_STATUS.READY) {
+          evt.preventDefault();
+          return;
+        }
+
+        const checkboxId = evt.target.id; // it looks like 'event-offer-${offer.id}-1'
         const offerId = +checkboxId.split('-')[2];
-        const newOffers = {...this._state.offers};
-        newOffers[offerId] = evt.target.checked;
+        let newOffers;
+        if (evt.target.checked) {
+          newOffers = [...this._state.offers, offerId];
+        } else {
+          newOffers = this._state.offers.filter((id) => id !== offerId);
+        }
         this.updateElement({
           offers: newOffers,
         });
@@ -284,14 +365,19 @@ export default class TripEventsFormView extends AbstractStatefulView {
   #setPriceUpdateHandler() {
     const input = this.element.querySelector('#event-price-1');
     input.addEventListener('change', (evt) => {
+      if (this.status !== FORM_STATUS.READY) {
+        evt.preventDefault();
+        return;
+      }
+
       const newPrice = +evt.target.value;
       if (isNaN(newPrice)) {
         alert('Некорректная стоимость');
-      } else if (newPrice < 0) {
-        alert('Стоимость не может быть отрицательной');
+      } else if (newPrice <= 0) {
+        alert('Стоимость должна быть больше нуля');
       } else {
         this.updateElement({
-          base_price: newPrice,
+          'base_price': newPrice,
         });
       }
     });
@@ -301,6 +387,10 @@ export default class TripEventsFormView extends AbstractStatefulView {
     const radios = this.element.querySelectorAll('input[name="event-type"]');
     for (const radio of radios) {
       radio.addEventListener('change', (evt) => {
+        if (this.status !== FORM_STATUS.READY) {
+          evt.preventDefault();
+          return;
+        }
         const value = evt.target.value;
         this.updateElement({
           type: value,
@@ -312,8 +402,13 @@ export default class TripEventsFormView extends AbstractStatefulView {
   #setDestinationUpdateHandler() {
     const input = this.element.querySelector('#event-destination-1');
     input.addEventListener('change', (evt) => {
+      if (this.status !== FORM_STATUS.READY) {
+        evt.preventDefault();
+        return;
+      }
+
       const value = evt.target.value.toLowerCase(); // case insensitive matching
-      for (const destination of Object.values(destinations)) {
+      for (const destination of Object.values(this.#destinationModel.destinations)) {
         if (destination.name.toLowerCase() === value) {
           evt.target.value = destination.name;
           this.updateElement({
@@ -324,6 +419,32 @@ export default class TripEventsFormView extends AbstractStatefulView {
       }
 
       // incorrect destination.name here...
+      alert(`Incorrect destination: ${evt.target.value}`);
+      evt.preventDefault();
+      evt.target.value = this.#lastDestinationName;
     });
+  }
+
+  makeSaving() {
+    this.status = FORM_STATUS.SAVING;
+    const saveButton = this.element.querySelector('.event__save-btn');
+    saveButton.innerText = 'Saving...';
+  }
+
+  makeDeleting() {
+    this.status = FORM_STATUS.DELETING;
+    const deleteButton = this.element.querySelector('.event__reset-btn');
+    deleteButton.innerText = 'Deleting...';
+  }
+
+  unlock() {
+    if (this.status === FORM_STATUS.SAVING) {
+      const saveButton = this.element.querySelector('.event__save-btn');
+      saveButton.innerText = 'Save';
+    } else if (this.status === FORM_STATUS.DELETING) {
+      const deleteButton = this.element.querySelector('.event__reset-btn');
+      deleteButton.innerText = 'Delete';
+    }
+    this.status = FORM_STATUS.READY;
   }
 }
