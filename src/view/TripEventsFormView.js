@@ -1,8 +1,20 @@
 import dayjs from 'dayjs';
-import { destinations, generateOffers, offers } from '../mock/trip-event';
+import { destinations, offers } from '../mock/trip-event';
 import { FORM_MODE, TRIP_EVENT_TYPES } from '../const';
 import { capitalize } from '../utils';
-import AbstractView from '../framework/view/abstract-view';
+import AbstractStatefulView from '../framework/view/abstract-stateful-view';
+import flatpickr from 'flatpickr';
+import 'flatpickr/dist/flatpickr.min.css';
+
+const BLANK_TASK = {
+  id: 0,
+  base_price: null,
+  date_from: '2023-06-01T00:00:00.000Z',
+  date_to: '2023-06-01T00:00:00.000Z',
+  destination: Object.keys(destinations)[0],
+  type: TRIP_EVENT_TYPES.includes('flight') ? 'flight' : TRIP_EVENT_TYPES[0],
+  offers: [],
+}
 
 const createTripEventsFormTemplate = (tripEvent = null) => {
   let mode;
@@ -10,20 +22,6 @@ const createTripEventsFormTemplate = (tripEvent = null) => {
     mode = FORM_MODE.EDIT;
   } else {
     mode = FORM_MODE.NEW;
-  }
-
-  if (!tripEvent) {
-    const date = dayjs().startOf('day').toISOString();
-    const defaultType = 'flight;';
-    tripEvent = {
-      id: 0,
-      base_price: null,
-      date_from: date,
-      date_to: date,
-      destination: Object.keys(destinations)[0],
-      type: TRIP_EVENT_TYPES.includes(defaultType) ? defaultType : TRIP_EVENT_TYPES[0],
-      offers: generateOffers(),
-    };
   }
 
   const dateFrom = dayjs(tripEvent.date_from);
@@ -167,28 +165,17 @@ const createTripEventsFormTemplate = (tripEvent = null) => {
   `;
 };
 
-export default class TripEventsFormView extends AbstractView {
-  #tripEvent = null;
-  #tripEventData = null;
+export default class TripEventsFormView extends AbstractStatefulView {
+  _state = BLANK_TASK;
 
   mode = FORM_MODE.NEW;
 
   get template() {
-    return createTripEventsFormTemplate(this.#tripEventData);
+    return createTripEventsFormTemplate(this._state);
   }
 
-  updateData(tripEventData, tripEvent) {
-    this.#tripEventData = tripEventData;
-    this.#tripEvent = tripEvent;
-    this.#updateMode();
-  }
-
-  #updateMode() {
-    if (this.#tripEventData) {
-      this.mode = FORM_MODE.EDIT;
-    } else {
-      this.mode = FORM_MODE.NEW;
-    }
+  setMode(mode) {
+    this.mode = mode;
   }
 
   #formSubmitHandler = (evt) => {
